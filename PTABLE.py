@@ -3,6 +3,9 @@
 Standalone program. Needs CHEMCORE.py on the calculator as well.
 
     LEFT/RIGHT   previous / next atomic number
+    ZOOM/TRACE   jump 10 at a time
+    Y=           show or hide element symbols
+    WINDOW       go straight to an atomic number
     UP/DOWN      move up or down the column
     ENTER        element detail
     CLEAR        exit
@@ -26,6 +29,15 @@ DOWN = 34
 SECOND = 21
 CLEAR = 45
 ENTER = 105
+
+# The five keys under the screen. Confirmed on the Evo, and the only
+# spare buttons whose codes are known -- the number keys are not
+# documented anywhere I could find, so nothing here depends on them.
+YEQU = 11
+WINDOW = 12
+ZOOM = 13
+TRACE = 14
+GRAPH = 15
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -148,8 +160,10 @@ X0 = 7
 Y0 = 31
 FGAP = 8         # blank strip above the lanthanide / actinide rows
 
+N = element_count()
 
-def cell_xy(z):
+
+def _cell_xy(z):
     col, row = table_position(z)
     x = X0 + (col - 1) * CW
     y = Y0 + (row - 1) * PITCH
@@ -158,43 +172,112 @@ def cell_xy(z):
     return x, y
 
 
-def cell_color(z):
-    return BLOCK_COLOR.get(block_of(z), GREY)
+# Work the geometry out once, at load. table_position() is a chain of
+# range tests, and recomputing it for 118 cells on every repaint was
+# pure waste.
+CELLS = tuple(_cell_xy(z) for z in range(1, N + 1))
+
+# Cells grouped by block, so a full repaint sets the colour four times
+# instead of 118 times. On a 156 MHz core the call count is what you
+# feel, and this is the difference between the table appearing at once
+# and it crawling in.
+BLOCKS = ("s", "p", "d", "f")
+BLOCK_MEMBERS = {}
+for _b in BLOCKS:
+    BLOCK_MEMBERS[_b] = tuple(z for z in range(1, N + 1) if block_of(z) == _b)
+
+SHOW_SYMBOLS = False     # off by default: symbols cost ~8 calls a cell
+
+
+def cell_xy(z):
+    return CELLS[z - 1]
+
+
+def draw_symbol(z):
+    x, y = CELLS[z - 1]
+    sym = symbol(z).upper()
+    mini_text(x + (CW - mini_width(sym)) // 2, y + 3, sym)
 
 
 def draw_cell(z, selected=False):
-    x, y = cell_xy(z)
-    color(NAVY if selected else cell_color(z))
-    d.fill_rect(x, y, CW, CH)
-    color(WHITE if selected else BLACK)
-    d.set_pen("thin", "solid")
-    d.draw_rect(x, y, CW, CH)
-    sym = symbol(z).upper()
-    mini_text(x + (CW - mini_width(sym)) // 2, y + 4, sym)
+    """Repaint one cell. Used for the two cells that change as the
+    cursor moves, so holding an arrow key stays responsive."""
+    x, y = CELLS[z - 1]
+    if selected:
+        color(NAVY)
+        d.fill_rect(x, y, CW - 1, CH - 1)
+        color(WHITE)
+        mini_text(x + (CW - mini_width(symbol(z).upper())) // 2, y + 3,
+                  symbol(z).upper())
+    else:
+        color(BLOCK_COLOR.get(block_of(z), GREY))
+        d.fill_rect(x, y, CW - 1, CH - 1)
+        if SHOW_SYMBOLS:
+            color(BLACK)
+            draw_symbol(z)
+
+
+def fill_table(cursor):
+    """Paint all 118 cells, grouped by colour.
+
+    Cells are drawn one pixel short of the pitch, so the white ground
+    shows through as the grid lines. That removes a draw_rect and a
+    set_pen from every cell -- 236 calls saved -- and looks the same.
+    """
+    for b in BLOCKS:
+        color(BLOCK_COLOR[b])
+        for z in BLOCK_MEMBERS[b]:
+            x, y = CELLS[z - 1]
+            d.fill_rect(x, y, CW - 1, CH - 1)
+
+    if SHOW_SYMBOLS:
+        color(BLACK)
+        for z in range(1, N + 1):
+            if z != cursor:
+                draw_symbol(z)
+
+    # placeholders in the empty group-3 slots, so the two detached
+    # strips visibly belong under the main body of the table
+    color(GREY)
+    for row in (6, 7):
+        x = X0 + 2 * CW
+        y = Y0 + (row - 1) * PITCH
+        d.fill_rect(x, y, CW - 1, CH - 1)
+    color(WHITE)
+    mini_text(X0 + 2 * CW + 3, Y0 + 5 * PITCH + 3, "LA")
+    mini_text(X0 + 2 * CW + 3, Y0 + 6 * PITCH + 3, "AC")
+
+    draw_cell(cursor, True)
 
 
 def title_for(z):
     return str(z) + " " + symbol(z) + " " + name(z)
 
 
+SOFTKEYS = ("SYMBOL", "GOTO", "-10", "+10", "EXIT")
+
+
+def softkeys():
+    """Label the five keys under the screen, the way the calculator's
+    own menus do. These are the only extra keys whose codes are
+    confirmed on the Evo."""
+    color(NAVY)
+    d.fill_rect(-1, 183, 322, 28)
+    color(WHITE)
+    d.set_pen("thin", "solid")
+    for i in range(1, 5):
+        d.draw_line(i * 64, 184, i * 64, 210)
+    for i in range(5):
+        label = SOFTKEYS[i]
+        x = i * 64 + (64 - len(label) * 10) // 2
+        d.draw_text(x, 204, label)
+
+
 def draw_table(cursor):
     screen(WHITE)
     header(title_for(cursor))
-    for z in range(1, element_count() + 1):
-        draw_cell(z, z == cursor)
-    # a marker in the empty group-3 slots, so the two detached strips
-    # visibly belong under the main body of the table
-    color(GREY)
-    for row in (6, 7):
-        x = X0 + 2 * CW
-        y = Y0 + (row - 1) * PITCH
-        d.fill_rect(x, y, CW, CH)
-        color(BLACK)
-        d.set_pen("thin", "solid")
-        d.draw_rect(x, y, CW, CH)
-        mini_text(x + 5, y + 4, "LA" if row == 6 else "AC")
-        color(GREY)
-    footer("ENT INFO   CLR EXIT")
+    fill_table(cursor)
+    softkeys()
     present()
 
 
@@ -366,26 +449,103 @@ def detail_screen(z):
 # Main loop
 # ----------------------------------------------------------------------
 
+def ask_element(current):
+    """Pick an atomic number by digits. -> Z, or None if cancelled.
+
+    Three digit slots reach any element in a handful of presses, where
+    stepping there with LEFT/RIGHT could take 117.
+    """
+    digits = [(current // 100) % 10, (current // 10) % 10, current % 10]
+    pos = 2
+    while True:
+        z = digits[0] * 100 + digits[1] * 10 + digits[2]
+        ok = 1 <= z <= N
+
+        screen(WHITE)
+        header("Go to element")
+        color(GREY)
+        d.draw_text(10, 50, "Atomic number 1 to " + str(N))
+
+        for i in range(3):
+            x = 92 + i * 46
+            if i == pos:
+                color(NAVY)
+                d.fill_rect(x - 6, 70, 42, 46)
+                color(WHITE)
+            else:
+                color(BLACK)
+            d.draw_text(x + 6, 102, str(digits[i]))
+
+        if ok:
+            color(TEAL)
+            d.draw_text(10, 146, "= " + symbol(z) + "  " + name(z)[:20])
+        else:
+            color(RED)
+            d.draw_text(10, 146, "no element " + str(z))
+        color(GREY)
+        d.draw_text(10, 170, "UP/DN digit,  L/R move")
+        footer("ENT GO   CLR CANCEL")
+        present()
+
+        k = tis.wait_key()
+        if k in (CLEAR, GRAPH):
+            return None
+        if k == ENTER and ok:
+            return z
+        if k == LEFT:
+            pos = (pos - 1) % 3
+        elif k == RIGHT:
+            pos = (pos + 1) % 3
+        elif k == UP:
+            digits[pos] = (digits[pos] + 1) % 10
+        elif k == DOWN:
+            digits[pos] = (digits[pos] - 1) % 10
+
+
+def clamp(z):
+    if z < 1:
+        return 1
+    if z > N:
+        return N
+    return z
+
+
 def table_loop():
+    global SHOW_SYMBOLS
     cursor = 1
     draw_table(cursor)
     while True:
         k = tis.wait_key()
-        if k == CLEAR:
+        if k in (CLEAR, GRAPH):
             return
+
+        if k == YEQU:                       # toggle the element symbols
+            SHOW_SYMBOLS = not SHOW_SYMBOLS
+            draw_table(cursor)
+            continue
+        if k == WINDOW:                     # jump straight to an element
+            picked = ask_element(cursor)
+            cursor = picked if picked else cursor
+            draw_table(cursor)
+            continue
+        if k == ENTER:
+            cursor = detail_screen(cursor)
+            draw_table(cursor)
+            continue
+
         previous = cursor
-        if k == RIGHT and cursor < element_count():
-            cursor += 1
-        elif k == LEFT and cursor > 1:
-            cursor -= 1
+        if k == RIGHT:
+            cursor = clamp(cursor + 1)
+        elif k == LEFT:
+            cursor = clamp(cursor - 1)
+        elif k == TRACE:
+            cursor = clamp(cursor + 10)
+        elif k == ZOOM:
+            cursor = clamp(cursor - 10)
         elif k == UP:
             cursor = vertical_move(cursor, -1)
         elif k == DOWN:
             cursor = vertical_move(cursor, 1)
-        elif k == ENTER:
-            cursor = detail_screen(cursor)
-            draw_table(cursor)
-            continue
 
         if cursor != previous:
             # repaint only the two cells that changed, so holding an
