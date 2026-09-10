@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+
+# desktop-only: rendered mockups and the test harness live outside this repo
+*.png
+tests/
