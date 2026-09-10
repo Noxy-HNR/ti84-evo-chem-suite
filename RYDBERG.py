@@ -13,9 +13,10 @@ Three modes, matching CHEMCORE:
 Every mode draws the substituted equation and the intermediate values,
 not just the answer, because that is what the course asks you to show.
 
-Numbers are entered with the arrow keys rather than at a shell prompt:
-the Evo keeps the graphics screen up for the whole program, so nothing
-here has to hand the screen back to the shell to read a value.
+Numbers are entered in scientific notation (M.MMM e +EE) with the
+arrow keys, so a photon energy of 3.027e-19 J is typed directly rather
+than scaled by hand. Nothing here needs a shell prompt: the Evo keeps
+the graphics screen up for the whole program.
 """
 
 import ti_draw as d
@@ -122,40 +123,60 @@ def pick_int(title, prompt, value, low, high):
             value -= 10
 
 
-def ask_value(title, prompt, unit, digits=None):
-    """Enter a number as NNNN.N with the arrow keys.
+# Slot x positions for the seven editable places of M.MMM e +EE
+SLOT_X = (24, 66, 96, 126, 186, 220, 250)
 
-    Four whole digits and one decimal covers every wavelength and
-    molar energy this course uses, and needs no shell prompt.
+
+def sci_value(m, esign, e):
+    """Assemble mantissa digits and exponent into a float."""
+    mant = m[0] + m[1] / 10.0 + m[2] / 100.0 + m[3] / 1000.0
+    exp = esign * (e[0] * 10 + e[1])
+    return mant * (10.0 ** exp)
+
+
+def ask_sci(title, prompt, unit, preset=None):
+    """Enter a number in scientific notation with the arrow keys.
+
+    Laid out as M.MMM e +EE, which reaches 1.000e-99 through
+    9.999e+99. The old fixed NNNN.N spinner topped out at 9999.9, so
+    an energy of 3.027e-19 J simply could not be typed.
+
+    preset is (mantissa digits, exponent sign, exponent digits).
     """
-    if digits is None:
-        digits = [0, 6, 5, 6, 3]
+    if preset is None:
+        preset = ([6, 5, 6, 3], 1, [0, 2])
+    m = list(preset[0])
+    esign = preset[1]
+    e = list(preset[2])
     pos = 0
+
     while True:
+        value = sci_value(m, esign, e)
         screen(WHITE)
         header(title)
         color(GREY)
-        d.draw_text(10, 52, prompt[:31])
+        d.draw_text(10, 50, prompt[:31])
 
-        x0 = 60
-        for i in range(5):
-            x = x0 + i * 34 + (14 if i == 4 else 0)
+        # the seven editable slots, plus the fixed punctuation
+        chars = [str(m[0]), str(m[1]), str(m[2]), str(m[3]),
+                 "-" if esign < 0 else "+", str(e[0]), str(e[1])]
+        for i in range(7):
+            x = SLOT_X[i]
             if i == pos:
                 color(NAVY)
-                d.fill_rect(x - 4, 72, 32, 44)
+                d.fill_rect(x - 5, 72, 28, 40)
                 color(WHITE)
             else:
                 color(BLACK)
-            d.draw_text(x + 3, 104, str(digits[i]))
+            d.draw_text(x, 102, chars[i])
         color(BLACK)
-        d.draw_text(x0 + 4 * 34 - 2, 104, ".")
+        d.draw_text(46, 102, ".")
+        d.draw_text(154, 102, "e")
 
-        value = (digits[0] * 1000 + digits[1] * 100 + digits[2] * 10
-                 + digits[3] + digits[4] / 10.0)
         color(TEAL)
-        d.draw_text(10, 148, "= " + sci(value) + " " + unit)
+        d.draw_text(10, 142, ("= " + sci(value) + " " + unit)[:31])
         color(GREY)
-        d.draw_text(10, 170, "UP/DN digit, L/R move")
+        d.draw_text(10, 166, "UP/DN change,  L/R move")
         footer("ENT OK   CLR CANCEL")
         present()
 
@@ -166,13 +187,17 @@ def ask_value(title, prompt, unit, digits=None):
             if value > 0:
                 return value
         elif k == LEFT:
-            pos = (pos - 1) % 5
+            pos = (pos - 1) % 7
         elif k == RIGHT:
-            pos = (pos + 1) % 5
-        elif k == UP:
-            digits[pos] = (digits[pos] + 1) % 10
-        elif k == DOWN:
-            digits[pos] = (digits[pos] - 1) % 10
+            pos = (pos + 1) % 7
+        elif k in (UP, DOWN):
+            step = 1 if k == UP else -1
+            if pos < 4:
+                m[pos] = (m[pos] + step) % 10
+            elif pos == 4:
+                esign = -esign
+            else:
+                e[pos - 5] = (e[pos - 5] + step) % 10
 
 
 def choose(title, items):
@@ -376,16 +401,18 @@ def mode_find_level():
         return
 
     if which == 0:
-        lam = ask_value("Wavelength", "Wavelength in nm", "nm")
+        lam = ask_sci("Wavelength", "Wavelength in nm", "nm",
+                      ([6, 5, 6, 3], 1, [0, 2]))
         if lam is None:
             return
         pre = []
     else:
-        scaled = ask_value("Energy", "Energy, times 1e-19 J", "e-19 J",
-                           [0, 0, 0, 3, 0])
-        if scaled is None:
+        # scientific entry means this can be a real joule value now,
+        # instead of the old "give it to me in units of 1e-19" fudge
+        e = ask_sci("Energy", "Photon energy in J", "J",
+                    ([3, 0, 2, 7], -1, [1, 9]))
+        if e is None:
             return
-        e = scaled * 1e-19
         lam = energy_to_wavelength(e)
         pre = [
             "E = " + sci(e) + " J",
@@ -421,8 +448,8 @@ def mode_find_level():
 
 
 def mode_molar():
-    kj = ask_value("Mode 3: kJ/mol", "Energy in kJ/mol", "kJ/mol",
-                   [0, 1, 8, 2, 0])
+    kj = ask_sci("Mode 3: kJ/mol", "Energy in kJ/mol", "kJ/mol",
+                 ([1, 8, 2, 0], 1, [0, 2]))
     if kj is None:
         return
     e, lam, steps = from_molar_energy(kj)
@@ -466,7 +493,8 @@ def main():
             elif pick == 2:
                 mode_molar()
             elif pick == 3:
-                lam = ask_value("Spectrum", "Wavelength in nm", "nm")
+                lam = ask_sci("Spectrum", "Wavelength in nm", "nm",
+                              ([6, 5, 6, 3], 1, [0, 2]))
                 if lam is not None:
                     spectrum_screen(lam)
     finally:
