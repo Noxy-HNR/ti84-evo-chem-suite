@@ -207,6 +207,60 @@ def electron_configuration(z):
     return out
 
 
+def ion_configuration(z, charge=0):
+    """Textbook isolated-ion model, not measured configurations for every ion.
+
+    Positive charge removes highest-n electrons first (ns before (n-1)d).
+    Negative charge fills the next available subshell; limited to main-group
+    anions up to the next noble gas. Does not model ligand-field splitting.
+    """
+    if z != int(z) or not 1 <= z <= element_count():
+        raise ValueError("Atomic number must be 1-118")
+    if charge != int(charge) or not -4 <= charge <= 8 or charge > z:
+        raise ValueError("Charge must be -4 to +8")
+    if charge == 0:
+        return electron_configuration(z)
+    counts = {}
+    for n, l, count in electron_configuration(z):
+        counts[(n, l)] = count
+    if charge > 0:
+        # Remove the outer shell first, then reverse filling order. Using n alone
+        # throughout would incorrectly remove core 5p before valence 4f in Sm3+.
+        outer_n = max(n for n, l in counts)
+        removal = sorted(counts, key=lambda key: (key[0] == outer_n,
+                         key[0] + key[1], key[0]), reverse=True)
+        for key in removal:
+            take = min(charge, counts[key])
+            counts[key] -= take
+            charge -= take
+            if charge == 0:
+                break
+    else:
+        next_noble = None
+        for noble in (2, 10, 18, 36, 54, 86, 118):
+            if noble > z:
+                next_noble = noble
+                break
+        if (block_of(z) not in ("s", "p") or next_noble is None
+                or z - charge > next_noble or group_of(z) == 18):
+            raise ValueError("Use a main-group anion")
+        left = -charge
+        for key in ORDER:
+            put = min(left, capacity(key[1]) - counts.get(key, 0))
+            counts[key] = counts.get(key, 0) + put
+            left -= put
+            if not left:
+                break
+    return [(n, l, counts.get((n, l), 0)) for n, l in ORDER
+            if counts.get((n, l), 0) > 0]
+
+
+def ion_label(z, charge):
+    if charge == 0:
+        return symbol(z)
+    return symbol(z) + str(abs(charge)) + ("+" if charge > 0 else "-")
+
+
 def is_exception(z):
     return z in EXCEPTIONS
 

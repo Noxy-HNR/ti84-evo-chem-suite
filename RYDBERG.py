@@ -32,13 +32,13 @@ SECOND = 21
 CLEAR = 45
 ENTER = 105
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-NAVY = (18, 45, 73)
-TEAL = (0, 119, 133)
-RED = (200, 60, 60)
-GREY = (150, 160, 170)
-PALE = (238, 241, 244)
+BLACK = (25, 40, 48)
+WHITE = (248, 250, 249)
+NAVY = (24, 47, 56)
+TEAL = (15, 112, 94)
+RED = (178, 57, 57)
+GREY = (102, 121, 128)
+PALE = (224, 235, 232)
 
 BUFFERED = False
 try:
@@ -60,19 +60,23 @@ def color(c):
 
 def screen(c=WHITE):
     color(c)
-    d.fill_rect(-1, -1, 322, 212)
+    d.fill_rect(0, 0, 320, 210)
 
 
 def header(text):
     color(NAVY)
-    d.fill_rect(-1, -1, 322, 25)
+    d.fill_rect(0, 0, 320, 25)
+    color(TEAL)
+    d.fill_rect(0, 24, 320, 2)
     color(WHITE)
     d.draw_text(4, 19, text[:31])
 
 
 def footer(text):
     color(NAVY)
-    d.fill_rect(-1, 183, 322, 28)
+    d.fill_rect(0, 183, 320, 27)
+    color(TEAL)
+    d.fill_rect(0, 183, 320, 2)
     color(WHITE)
     d.draw_text(4, 203, text[:31])
 
@@ -209,9 +213,11 @@ def choose(title, items):
         for i in range(len(items)):
             y = 62 + i * 30
             if i == selected:
-                color(TEAL)
+                color(PALE)
                 d.fill_rect(8, y - 20, 304, 26)
-                color(WHITE)
+                color(TEAL)
+                d.fill_rect(8, y - 20, 3, 26)
+                color(BLACK)
             else:
                 color(BLACK)
             d.draw_text(16, y, items[i][:29])
