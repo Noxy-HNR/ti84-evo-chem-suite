@@ -39,20 +39,20 @@ ZOOM = 13
 TRACE = 14
 GRAPH = 15
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-NAVY = (18, 45, 73)
-GREY = (188, 198, 207)
-PALE = (238, 241, 244)
-TEAL = (0, 119, 133)
-RED = (200, 60, 60)
+BLACK = (25, 40, 48)
+WHITE = (248, 250, 249)
+NAVY = (24, 47, 56)
+GREY = (102, 121, 128)
+PALE = (224, 235, 232)
+TEAL = (15, 112, 94)
+RED = (178, 57, 57)
 
 # One colour per block, so the shape of the table teaches the blocks
 BLOCK_COLOR = {
-    "s": (232, 106, 106),
-    "p": (86, 148, 214),
-    "d": (240, 190, 84),
-    "f": (118, 196, 158),
+    "s": (239, 180, 168),
+    "p": (165, 203, 225),
+    "d": (239, 211, 147),
+    "f": (159, 213, 184),
 }
 
 # ----------------------------------------------------------------------
@@ -83,19 +83,23 @@ def color(c):
 
 def screen(c=WHITE):
     color(c)
-    d.fill_rect(-1, -1, 322, 212)
+    d.fill_rect(0, 0, 320, 210)
 
 
 def header(text):
     color(NAVY)
-    d.fill_rect(-1, -1, 322, 25)
+    d.fill_rect(0, 0, 320, 25)
+    color(TEAL)
+    d.fill_rect(0, 24, 320, 2)
     color(WHITE)
     d.draw_text(4, 19, text[:31])
 
 
 def footer(text):
     color(NAVY)
-    d.fill_rect(-1, 183, 322, 28)
+    d.fill_rect(0, 183, 320, 27)
+    color(TEAL)
+    d.fill_rect(0, 183, 320, 2)
     color(WHITE)
     d.draw_text(4, 203, text[:31])
 
@@ -138,10 +142,17 @@ def mini_text(x, y, text):
                     if bits & (4 >> col):
                         run += 1
                     elif run:
-                        d.fill_rect(x + col - run, y + r, run, 1)
+                        # The Evo rejects the 1-pixel fill_rect calls used
+                        # by this tiny font with "Width cannot be
+                        # negative".  A line with identical y endpoints
+                        # is the same horizontal run and is accepted by
+                        # the hardware.
+                        d.draw_line(x + col - run, y + r,
+                                    x + col - 1, y + r)
                         run = 0
                 if run:
-                    d.fill_rect(x + 3 - run, y + r, run, 1)
+                    d.draw_line(x + 3 - run, y + r,
+                                x + 2, y + r)
         x += 4
 
 
@@ -186,7 +197,7 @@ BLOCK_MEMBERS = {}
 for _b in BLOCKS:
     BLOCK_MEMBERS[_b] = tuple(z for z in range(1, N + 1) if block_of(z) == _b)
 
-SHOW_SYMBOLS = False     # off by default: symbols cost ~8 calls a cell
+SHOW_SYMBOLS = True     # off by default: symbols cost ~8 calls a cell
 
 
 def cell_xy(z):
@@ -262,11 +273,13 @@ def softkeys():
     own menus do. These are the only extra keys whose codes are
     confirmed on the Evo."""
     color(NAVY)
-    d.fill_rect(-1, 183, 322, 28)
+    d.fill_rect(0, 183, 320, 27)
+    color(TEAL)
+    d.fill_rect(0, 183, 320, 2)
     color(WHITE)
     d.set_pen("thin", "solid")
     for i in range(1, 5):
-        d.draw_line(i * 64, 184, i * 64, 210)
+        d.draw_line(i * 64, 184, i * 64, 209)
     for i in range(5):
         label = SOFTKEYS[i]
         x = i * 64 + (64 - len(label) * 10) // 2
@@ -354,22 +367,53 @@ def draw_boxes(n, l, boxes, top):
     return 44
 
 
-def orbital_screen(z):
-    n, l, count = outermost_subshell(z)
-    boxes = hund_fill(l, count)
-    screen(WHITE)
-    header(symbol(z) + "  " + subshell_label(n, l) + str(count))
-    draw_boxes(n, l, boxes, 52)
-    color(BLACK)
-    d.draw_text(10, 132, "Unpaired e-: " + str(unpaired(boxes)))
-    d.draw_text(10, 152, magnetism(boxes))
-    d.draw_text(10, 172, "Outermost subshell only")
-    footer("CLR BACK")
-    present()
+def orbital_screen(z, charge=0):
+    shells = ion_configuration(z, charge)
+    page = len(shells) - 1
     while True:
+        screen(WHITE)
+        header(ion_label(z, charge) + " orbital diagram")
+        if shells:
+            n, l, count = shells[page]
+            boxes = hund_fill(l, count)
+            draw_boxes(n, l, boxes, 48)
+            total = sum(unpaired(hund_fill(ll, cc)) for nn, ll, cc in shells)
+            color(BLACK)
+            d.draw_text(8, 118, "All subshells: " + str(total) + " unpaired")
+            d.draw_text(8, 138, "Paramagnetic" if total else "Diamagnetic")
+            d.draw_text(8, 158, "Subshell " + str(page + 1) + "/" + str(len(shells)))
+        else:
+            color(BLACK)
+            d.draw_text(8, 90, "No electrons (bare nucleus)")
+        color(GREY)
+        d.draw_text(8, 178, "Isolated atom/ion model")
+        footer("L/R SUBSHELL   CLR BACK")
+        present()
         k = tis.wait_key()
         if k in (CLEAR, ENTER, SECOND):
             return
+        if shells and k in (LEFT, RIGHT):
+            page = (page + (1 if k == RIGHT else -1)) % len(shells)
+
+
+def configuration_screen(z, charge):
+    lines = wrap(config_string(ion_configuration(z, charge))) or ["No electrons"]
+    page = 0
+    while True:
+        screen(WHITE)
+        header(ion_label(z, charge) + " full configuration")
+        color(BLACK)
+        for i, line in enumerate(lines[page:page + 7]):
+            d.draw_text(8, 46 + i * 18, line)
+        footer("UP/DN SCROLL   CLR BACK")
+        present()
+        k = tis.wait_key()
+        if k in (CLEAR, ENTER):
+            return
+        if k == DOWN:
+            page = min(max(0, len(lines) - 7), page + 1)
+        elif k == UP:
+            page = max(0, page - 1)
 
 
 # ----------------------------------------------------------------------
@@ -393,10 +437,10 @@ def wrap(text, width=29):
     return lines
 
 
-def draw_detail(z):
-    shells = electron_configuration(z)
+def draw_detail(z, charge=0):
+    shells = ion_configuration(z, charge)
     screen(WHITE)
-    header(title_for(z))
+    header(title_for(z) if charge == 0 else ion_label(z, charge) + " - textbook ion")
 
     color(BLACK)
     y = 42
@@ -408,7 +452,7 @@ def draw_detail(z):
     y += 18
     d.draw_text(8, y, "Block   " + block_of(z))
     y += 18
-    d.draw_text(8, y, "Valence " + str(valence_electrons(z)) + " e-")
+    d.draw_text(8, y, ("Valence " + str(valence_electrons(z)) if not charge else "Total   " + str(z - charge)) + " e-")
 
     # The heading and the flag share a line on purpose. There is only
     # room for three wrapped configuration lines above the footer, and
@@ -417,7 +461,7 @@ def draw_detail(z):
     y = 132
     color(TEAL)
     d.draw_text(8, y, "Configuration")
-    if is_exception(z):
+    if not charge and is_exception(z):
         color(RED)
         d.draw_text(150, y, "! breaks Aufbau")
 
@@ -427,22 +471,38 @@ def draw_detail(z):
         d.draw_text(8, y, line)
         y += 16
 
-    footer("ENT ORBITAL  L/R ELEM  CLR")
+    footer("ENT ORB W CFG Z-/T+ CLR")
     present()
 
 
 def detail_screen(z):
+    charge = 0
     while True:
-        draw_detail(z)
+        draw_detail(z, charge)
         k = tis.wait_key()
         if k == CLEAR:
             return z
         if k == ENTER:
-            orbital_screen(z)
+            orbital_screen(z, charge)
+        elif k == WINDOW:
+            configuration_screen(z, charge)
+        elif k in (ZOOM, TRACE):
+            trial = charge + (1 if k == TRACE else -1)
+            try:
+                ion_configuration(z, trial)
+                charge = trial
+            except ValueError:
+                footer("Unsupported charge  ENT BACK")
+                present()
+                tis.wait_key()
+        elif k == GRAPH:
+            charge = 0
         elif k == RIGHT and z < element_count():
             z += 1
+            charge = 0
         elif k == LEFT and z > 1:
             z -= 1
+            charge = 0
 
 
 # ----------------------------------------------------------------------

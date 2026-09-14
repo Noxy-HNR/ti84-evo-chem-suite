@@ -1,3 +1,8 @@
+> Current release instructions and controls are in [../README.md](../README.md).
+> The desktop regression harness is now included in `../tests/`; generated transfer
+> files live in `../release/`. Ion controls, full configurations, and orbital paging
+> are available in PTABLE. This directory is the authoritative source.
+
 # CHEM 1450 suite — TI-84 Evo
 
 Three separate graphical programs plus one shared logic module, for the
@@ -101,8 +106,7 @@ config_string(electron_configuration(24))   # 1s2 2s2 2p6 3s2 3p6 4s1 3d5
 from_levels(3, 2)[0]                        # 656.3 nm, H-alpha
 ```
 
-Before release it was checked against a desktop harness (kept outside
-this repo) that confirmed:
+Before release it was checked against a desktop harness (the current replacement is included in `../tests/`) that confirmed:
 
 - every configuration sums to Z, and no subshell exceeds its capacity
 - the 19 exceptions match PubChem field by field
