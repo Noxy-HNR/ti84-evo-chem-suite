@@ -73,13 +73,13 @@ AXmEn, molecular shape, approximate bond angle, hybridization, and a
 schematic. Arrow keys move among the valid cells; ENTER shows a short
 guide; CLEAR exits.
 
-**LEWIS** — use the arrow keys to select four formula slots, LEFT/RIGHT
-to change the element, and 2ND to switch between editing its element and
-its count; UP/DOWN changes the count (0–6). Select the Charge row to set
-an ion charge with LEFT/RIGHT. ENTER shows the worksheet steps and then
-the drawn structure; LEFT/RIGHT cycles equivalent resonance forms. This
-version handles common one-central-atom molecules and ions with terminal
-atoms; it does not yet construct multi-center carbon skeletons.
+**LEWIS** — choose a common molecule/ion from the startup list or select
+Custom formula. In the formula editor, UP/DOWN selects a row, LEFT/RIGHT
+changes its element, and 2ND switches to count editing so UP/DOWN changes
+the count (0–6). Select Charge to set an ion charge with LEFT/RIGHT.
+ENTER draws the structure directly; LEFT/RIGHT cycles equivalent
+resonance forms. Custom structures support one central atom and terminal
+atoms; multi-center skeletons such as C2H6 are not supported.
 
 ## Chemistry notes
 

@@ -26,21 +26,21 @@ TEAL = (15, 112, 94)
 GOLD = (239, 211, 147)
 
 DATA = {
-    (2, 0): ("Lin", "Linear", "180 degrees", "sp"),
-    (3, 0): ("TrP", "Trigonal planar", "120 degrees", "sp^2"),
-    (3, 1): ("Ben", "Bent", "less than 120", "sp^2"),
-    (4, 0): ("Tet", "Tetrahedral", "109.5 degrees", "sp^3"),
-    (4, 1): ("TPy", "Trigonal pyramidal", "about 107", "sp^3"),
-    (4, 2): ("Ben", "Bent", "about 104.5", "sp^3"),
-    (5, 0): ("TBP", "Trigonal bipyramidal", "90, 120, 180", "sp^3d"),
-    (5, 1): ("Sw", "Seesaw", "less than 90, 120", "sp^3d"),
-    (5, 2): ("T", "T-shaped", "about 90", "sp^3d"),
-    (5, 3): ("Lin", "Linear", "180 degrees", "sp^3d"),
-    (6, 0): ("Oct", "Octahedral", "90 degrees", "sp^3d^2"),
-    (6, 1): ("SqP", "Square pyramidal", "about 90", "sp^3d^2"),
-    (6, 2): ("SqPl", "Square planar", "90 degrees", "sp^3d^2"),
-    (6, 3): ("T", "T-shaped", "about 90", "sp^3d^2"),
-    (6, 4): ("Lin", "Linear", "180 degrees", "sp^3d^2"),
+    (2, 0): ("Li", "Linear", "180 deg", "sp"),
+    (3, 0): ("TP", "Trigonal planar", "120 deg", "sp^2"),
+    (3, 1): ("Be", "Bent", "<120 deg", "sp^2"),
+    (4, 0): ("Te", "Tetrahedral", "109.5 deg", "sp^3"),
+    (4, 1): ("Py", "Trigonal pyramidal", "~107 deg", "sp^3"),
+    (4, 2): ("Be", "Bent", "~104.5 deg", "sp^3"),
+    (5, 0): ("TB", "Trigonal bipyramidal", "90/120/180", "sp^3d"),
+    (5, 1): ("Se", "Seesaw", "<90, 120 deg", "sp^3d"),
+    (5, 2): ("T", "T-shaped", "~90 deg", "sp^3d"),
+    (5, 3): ("Li", "Linear", "180 deg", "sp^3d"),
+    (6, 0): ("Oc", "Octahedral", "90 deg", "sp^3d^2"),
+    (6, 1): ("SP", "Square pyramidal", "~90 deg", "sp^3d^2"),
+    (6, 2): ("Sq", "Square planar", "90 deg", "sp^3d^2"),
+    (6, 3): ("T", "T-shaped", "~90 deg", "sp^3d^2"),
+    (6, 4): ("Li", "Linear", "180 deg", "sp^3d^2"),
 }
 
 BUFFERED = False
@@ -95,8 +95,8 @@ def formula(regions, lone_pairs):
 
 def draw_matrix(selected_regions, selected_pairs):
     color(TEAL)
-    d.draw_text(4, 43, "Regions")
-    d.draw_text(38, 43, "LP ->")
+    d.draw_text(7, 43, "REG")
+    d.draw_text(43, 43, "LP")
     for lp in range(5):
         x = 66 + lp * 26
         d.draw_text(x + 7, 60, str(lp))
@@ -117,9 +117,7 @@ def draw_matrix(selected_regions, selected_pairs):
                     color(BLACK)
                 label = item[0]
                 d.draw_text(x + max(0, (25 - len(label) * 10) // 2), y,
-                            label[:2])
-                # Three-letter cell tags use the compact width available.
-                d.draw_text(x + 1, y + 9, label[2:3])
+                            label)
             else:
                 color(GREY)
                 d.draw_text(x + 10, y, "-")
