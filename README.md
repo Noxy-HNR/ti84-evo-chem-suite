@@ -5,7 +5,7 @@
 
 # CHEM 1450 suite — TI-84 Evo
 
-Four separate graphical programs plus one shared logic module, for the
+Six separate graphical programs plus one shared logic module, for the
 TI-84 Evo Python App.
 
 | File | What it is |
@@ -15,16 +15,19 @@ TI-84 Evo Python App.
 | `ORBITAL.py` | Animated Hund's-rule orbital filling. |
 | `RYDBERG.py` | Rydberg / photon-energy solver, worked out step by step. |
 | `HYBRID.py` | Steric-number to hybridization and electron-geometry chart. |
+| `VSEPR.py` | Interactive chart of electron regions, lone pairs, molecular shape, and hybridization. |
+| `LEWIS.py` | Formula-driven Lewis structure builder with worksheet steps and resonance forms. |
 
 Each graphical program is standalone with its own screen loop. There is
-no launcher. Transfer all five files; PTABLE, ORBITAL and RYDBERG use
-`from CHEMCORE import *`, while HYBRID is self-contained.
+no launcher. Transfer all seven files; PTABLE, ORBITAL, RYDBERG and LEWIS
+use `from CHEMCORE import *`, while HYBRID and VSEPR are self-contained.
 
 ## Transferring
 
-Connect the Evo over USB-C, open TI Connect Evo, and send all five
+Connect the Evo over USB-C, open TI Connect Evo, and send all seven
 `.py` files. Then open the Python App and run `PTABLE`, `ORBITAL`,
-`RYDBERG` or `HYBRID`. The first three load `CHEMCORE` automatically.
+`RYDBERG`, `HYBRID`, `VSEPR` or `LEWIS`. PTABLE, ORBITAL, RYDBERG and
+LEWIS load `CHEMCORE` automatically.
 
 ### About the file names
 
@@ -63,6 +66,20 @@ the visible-spectrum bar and UP/DOWN scrolls back through the steps.
 **HYBRID** — the chart maps 2–6 total regions (sigma bonds plus lone
 pairs) to hybridization and electron-domain geometry. UP/DOWN highlights
 a row, ENTER explains how to count regions, and CLEAR exits.
+
+**VSEPR** — the worksheet chart maps total electron regions (sigma bonds
+plus lone pairs) against central-atom lone pairs. The selected cell shows
+AXmEn, molecular shape, approximate bond angle, hybridization, and a
+schematic. Arrow keys move among the valid cells; ENTER shows a short
+guide; CLEAR exits.
+
+**LEWIS** — use the arrow keys to select four formula slots, LEFT/RIGHT
+to change the element, and 2ND to switch between editing its element and
+its count; UP/DOWN changes the count (0–6). Select the Charge row to set
+an ion charge with LEFT/RIGHT. ENTER shows the worksheet steps and then
+the drawn structure; LEFT/RIGHT cycles equivalent resonance forms. This
+version handles common one-central-atom molecules and ions with terminal
+atoms; it does not yet construct multi-center carbon skeletons.
 
 ## Chemistry notes
 
