@@ -178,8 +178,23 @@ def _pair_marks(x, y, angle, count, spacing=8, distance=17):
         shift = (pair - (count - 1) / 2.0) * spacing
         mx = x + int(ux * distance + px * shift)
         my = y + int(uy * distance + py * shift)
-        d.fill_circle(mx - 2, my, 1)
-        d.fill_circle(mx + 2, my, 1)
+        d.fill_circle(mx - 4, my, 2)
+        d.fill_circle(mx + 4, my, 2)
+
+
+def _central_pair_angles(pair_count, ligand_count):
+    if ligand_count == 2 and pair_count == 2:
+        return [0.0, math.pi]
+    if ligand_count == 2 and pair_count == 3:
+        return [0.0, math.pi / 2.0, math.pi]
+    if ligand_count == 4 and pair_count == 2:
+        return [-math.pi / 2.0, math.pi / 2.0]
+    if ligand_count == 3 and pair_count == 1:
+        return [math.pi / 2.0]
+    if ligand_count == 4 and pair_count == 1:
+        return [math.pi / 2.0]
+    return [-math.pi / 2.0 + 2.0 * math.pi * i / pair_count
+            for i in range(pair_count)]
 
 
 def _positions(ligand_count, center_lone_pairs, cx, cy):
@@ -251,8 +266,8 @@ def draw_structure(result, formula, resonance_index):
     color(NAVY)
     d.draw_text(cx - len(center) * 5, cy + 5, center)
     if central_lone > 0:
-        _pair_marks(cx, cy, math.pi / 2.0, central_lone // 2,
-                    spacing=9, distance=25)
+        for angle in _central_pair_angles(central_lone // 2, len(ligands)):
+            _pair_marks(cx, cy, angle, 1, distance=21)
     if central_charge:
         color(RED)
         d.draw_text(cx + len(center) * 5 + 2, cy - 9,
