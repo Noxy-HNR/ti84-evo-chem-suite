@@ -5,7 +5,7 @@
 
 # CHEM 1450 suite — TI-84 Evo
 
-Three separate graphical programs plus one shared logic module, for the
+Four separate graphical programs plus one shared logic module, for the
 TI-84 Evo Python App.
 
 | File | What it is |
@@ -14,16 +14,17 @@ TI-84 Evo Python App.
 | `PTABLE.py` | Graphical periodic table, cursor navigation, element detail. |
 | `ORBITAL.py` | Animated Hund's-rule orbital filling. |
 | `RYDBERG.py` | Rydberg / photon-energy solver, worked out step by step. |
+| `HYBRID.py` | Steric-number to hybridization and electron-geometry chart. |
 
-Each of the three is a standalone program with its own menu loop. There
-is no launcher. All four files go on the calculator — the three
-programs do `from CHEMCORE import *`.
+Each graphical program is standalone with its own screen loop. There is
+no launcher. Transfer all five files; PTABLE, ORBITAL and RYDBERG use
+`from CHEMCORE import *`, while HYBRID is self-contained.
 
 ## Transferring
 
-Connect the Evo over USB-C, open TI Connect Evo, and send all four
-`.py` files. Then open the Python App and run `PTABLE`, `ORBITAL` or
-`RYDBERG`. Running one loads `CHEMCORE` automatically.
+Connect the Evo over USB-C, open TI Connect Evo, and send all five
+`.py` files. Then open the Python App and run `PTABLE`, `ORBITAL`,
+`RYDBERG` or `HYBRID`. The first three load `CHEMCORE` automatically.
 
 ### About the file names
 
@@ -58,6 +59,10 @@ ENTER replays the animation, CLEAR returns to the menu.
 
 **RYDBERG** — arrow keys throughout. In a worked answer, ENTER shows
 the visible-spectrum bar and UP/DOWN scrolls back through the steps.
+
+**HYBRID** — the chart maps 2–6 total regions (sigma bonds plus lone
+pairs) to hybridization and electron-domain geometry. UP/DOWN highlights
+a row, ENTER explains how to count regions, and CLEAR exits.
 
 ## Chemistry notes
 
