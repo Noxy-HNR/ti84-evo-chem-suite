@@ -100,15 +100,13 @@ def draw_chart(selected):
     d.draw_text(174, 79, "Geometry")
     d.draw_line(8, 83, 312, 83)
 
-    # The fifth-region geometry wraps to two lines to keep the complete
-    # term readable on the 320-pixel display.
     baselines = (103, 122, 141, 160, 181)
     for i, row in enumerate(ROWS):
         total, exponent, geometry, d_suffix = row
         y = baselines[i]
         if i == selected:
             color(TEAL)
-            d.fill_rect(7, y - 17, 306, 19 if i != 3 else 34)
+            d.fill_rect(7, y - 17, 306, 19)
             color(WHITE)
         else:
             color(BLACK)
@@ -116,9 +114,10 @@ def draw_chart(selected):
         d.draw_text(33, y, total)
         draw_hybrid(104, y, exponent, d_suffix,
                     WHITE if i == selected else BLACK)
-        d.draw_text(166, y, geometry)
         if i == 3:
-            d.draw_text(166, y + 14, "bipyramidal")
+            d.draw_text(166, y, "Trigonal bipyr.")
+        else:
+            d.draw_text(166, y, geometry)
 
     footer("UP/DN ROW  ENTER INFO  CLEAR")
     present()
