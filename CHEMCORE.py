@@ -710,6 +710,154 @@ def spectrum_region(lam_nm):
     return "Microwave"
 
 
+# ----------------------------------------------------------------------
+# Lewis structures for common one-center gen-chem molecules and ions
+# ----------------------------------------------------------------------
+
+LEWIS_VALENCE = {
+    "H": 1, "B": 3, "C": 4, "N": 5, "O": 6, "F": 7,
+    "Si": 4, "P": 5, "S": 6, "Cl": 7, "Br": 7, "I": 7,
+    "Xe": 8,
+}
+LEWIS_EN = {
+    "H": 2.20, "B": 2.04, "C": 2.55, "N": 3.04, "O": 3.44,
+    "F": 3.98, "Si": 1.90, "P": 2.19, "S": 2.58, "Cl": 3.16,
+    "Br": 2.96, "I": 2.66, "Xe": 2.60,
+}
+LEWIS_EXPANDED = ("P", "S", "Cl", "Br", "I", "Xe")
+
+
+def _lewis_charge(atom, lone_e, bond_order):
+    return LEWIS_VALENCE[atom] - lone_e - bond_order
+
+
+def build_lewis(atoms, charge=0):
+    """Build a best-scoring central-atom Lewis structure.
+
+    atoms is [(symbol, count), ...]. This intentionally models one central
+    atom with terminal ligands, the structures used in the CHEM 1450 method.
+    Returns a dict containing the structure, resonance alternatives, charges,
+    and worksheet-style calculation steps. Raises ValueError if unsupported.
+    """
+    flat = []
+    for atom, count in atoms:
+        if atom not in LEWIS_VALENCE:
+            raise ValueError("No Lewis data for " + str(atom) + ".")
+        for unused in range(int(count)):
+            flat.append(atom)
+    if len(flat) < 2 or len(flat) > 7:
+        raise ValueError("Use 2 to 7 total atoms in this builder.")
+    candidates = [a for a in set(flat) if a != "H"]
+    if not candidates:
+        raise ValueError("Hydrogen cannot be the central atom.")
+    center = min(candidates, key=lambda a: LEWIS_EN[a])
+    ligands = list(flat)
+    ligands.remove(center)
+    if len(ligands) > 6:
+        raise ValueError("This screen supports up to 6 outer atoms.")
+
+    electrons = sum(LEWIS_VALENCE[a] for a in flat) - int(charge)
+    bonds = [1] * len(ligands)
+    terminal_lone = []
+    for atom in ligands:
+        target = 2 if atom == "H" else 8
+        terminal_lone.append(target - 2)
+    remaining = electrons - 2 * len(ligands) - sum(terminal_lone)
+    if remaining < 0 or remaining % 2:
+        raise ValueError("Electron count cannot make a valid Lewis structure.")
+    central_lone = remaining
+    central_shell = 2 * sum(bonds) + central_lone
+    central_limit = 6 if center == "B" else (12 if center in LEWIS_EXPANDED else 8)
+
+    # Transfer terminal lone pairs into bonds until the center has an
+    # allowed shell. Score equivalent choices to show resonance forms.
+    while central_shell < (6 if center == "B" else 8):
+        choices = []
+        for i, atom in enumerate(ligands):
+            if atom == "H" or terminal_lone[i] < 2 or bonds[i] >= 3:
+                continue
+            new_shell = central_shell + 2
+            if new_shell <= central_limit:
+                new_bonds = list(bonds)
+                new_bonds[i] += 1
+                new_lp = list(terminal_lone)
+                new_lp[i] -= 2
+                fc = _lewis_charge(center, central_lone, sum(new_bonds))
+                for j, ligand in enumerate(ligands):
+                    fc += _lewis_charge(ligand, new_lp[j], new_bonds[j])
+                choices.append((abs(fc), i, new_bonds, new_lp))
+        if not choices:
+            break
+        choices.sort(key=lambda item: item[0])
+        best_score = choices[0][0]
+        tied = [item for item in choices if item[0] == best_score]
+        _, chosen, bonds, terminal_lone = tied[0]
+        central_shell += 2
+        central_lone = electrons - 2 * sum(bonds) - sum(terminal_lone)
+        if central_lone < 0:
+            raise ValueError("Not enough electrons for this structure.")
+
+    if central_shell < (6 if center == "B" else 8):
+        raise ValueError("Could not complete the central atom shell.")
+
+    # Return all equivalent one-bond-shift resonance forms by finding every
+    # tied terminal position with the same minimal formal-charge score.
+    resonance = [list(bonds)]
+    if any(order > 1 for order in bonds):
+        target = sum(1 for order in bonds if order > 1)
+        resonance = []
+        for double_at in range(len(ligands)):
+            form = [1] * len(ligands)
+            form[double_at] = 2
+            if sum(form) != len(ligands) + 1:
+                continue
+            lp = [8 - 2 * form[i] for i, a in enumerate(ligands)]
+            if any(v < 0 or v % 2 for v in lp):
+                continue
+            c_lp = electrons - 2 * sum(form) - sum(lp)
+            if c_lp < 0 or c_lp % 2:
+                continue
+            c_shell = 2 * sum(form) + c_lp
+            if c_shell < (6 if center == "B" else 8) or c_shell > central_limit:
+                continue
+            qsum = _lewis_charge(center, c_lp, sum(form))
+            qsum += sum(_lewis_charge(ligands[i], lp[i], form[i])
+                        for i in range(len(ligands)))
+            if qsum == int(charge):
+                resonance.append(form)
+        if not resonance:
+            resonance = [list(bonds)]
+
+    charges = []
+    for order in bonds:
+        charges.append(None)
+    central_lone = electrons - 2 * sum(bonds) - sum(terminal_lone)
+    central_charge = _lewis_charge(center, central_lone, sum(bonds))
+    for i, atom in enumerate(ligands):
+        charges[i] = _lewis_charge(atom, terminal_lone[i], bonds[i])
+
+    steps = [
+        "1. Total valence e- = " + str(electrons) + " (charge included).",
+        "2. Central atom: " + center + " (least EN; never H).",
+        "3. Connect each outer atom with one single bond.",
+        "   " + str(len(ligands)) + " bonds use " + str(2 * len(ligands)) + " e-.",
+        "4. Complete terminal duet/octet shells.",
+        "   Terminal lone-pair e-: " + str(sum(terminal_lone)) + ".",
+        "5. Place remaining e- on central atom: " + str(central_lone) + ".",
+        "6. Form multiple bonds if needed for its shell.",
+        "   Central shell = " + str(central_shell) + " e-.",
+        "7. Check formal charges; sum = " + str(central_charge + sum(charges)) + ".",
+    ]
+    return {
+        "center": center, "ligands": ligands, "bonds": bonds,
+        "terminal_lone": terminal_lone, "central_lone": central_lone,
+        "central_charge": central_charge, "charges": charges,
+        "electrons": electrons, "steps": steps, "resonance": resonance,
+        "regions": len(ligands) + central_lone // 2,
+        "lone_pairs": central_lone // 2,
+    }
+
+
 SERIES = (
     (1, "Lyman", "UV"),
     (2, "Balmer", "visible"),
