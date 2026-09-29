@@ -5,29 +5,44 @@
 
 # CHEM 1450 suite — TI-84 Evo
 
-Six separate graphical programs plus one shared logic module, for the
-TI-84 Evo Python App.
+Eleven separate graphical programs plus three small shared modules, for
+the TI-84 Evo Python App.
 
 | File | What it is |
 |---|---|
-| `CHEMCORE.py` | Shared logic. No `ti_draw` / `ti_system`. Runs on desktop Python. |
+| `CHEMCORE.py` | Shared element data: configurations, ions, table positions, valence. Used by PTABLE and FORMULA. |
+| `LEWCORE.py` | Shared Lewis-structure solver. Used by LEWIS and BONDING. |
+| `POLCORE.py` | Shared textbook electronegativities and VSEPR shape data. Used by POLAR and BONDING. |
 | `PTABLE.py` | Graphical periodic table, cursor navigation, element detail. |
 | `ORBITAL.py` | Animated Hund's-rule orbital filling. |
 | `RYDBERG.py` | Rydberg / photon-energy solver, worked out step by step. |
 | `HYBRID.py` | Steric-number to hybridization and electron-geometry chart. |
 | `VSEPR.py` | Interactive chart of electron regions, lone pairs, molecular shape, and hybridization. |
 | `LEWIS.py` | Formula-driven Lewis structure builder with worksheet steps and resonance forms. |
+| `BONDING.py` | "Completely describe the bonding": Lewis, shape, hybridization, every sigma/pi bond by orbital, polarity. |
+| `POLAR.py` | Bond polarity from textbook EN values, bond ranking, the molecule symmetry rule. |
+| `NAMER.py` | Ionic formulas and names, acid names, covalent prefixes, polyatomic-ion and acid flashcards. |
+| `FORMULA.py` | Molar mass with work shown, % by mass, empirical and molecular formulas. |
+| `QNUMS.py` | Quantum numbers: validate a set or work backwards and count orbitals/electrons. |
 
 Each graphical program is standalone with its own screen loop. There is
-no launcher. Transfer all seven files; PTABLE, ORBITAL, RYDBERG and LEWIS
-use `from CHEMCORE import *`, while HYBRID and VSEPR are self-contained.
+no launcher. Transfer all fourteen files. PTABLE and FORMULA import
+CHEMCORE, LEWIS imports LEWCORE, POLAR imports POLCORE, and BONDING
+imports LEWCORE and POLCORE. ORBITAL, RYDBERG, NAMER, QNUMS, HYBRID and
+VSEPR are self-contained. Pure-Python modules have no ti_draw or
+ti_system imports and run on desktop Python. See the parent README for
+why the shared code is split: a 38 KB CHEMCORE ran the Evo out of memory.
 
 ## Transferring
 
-Connect the Evo over USB-C, open TI Connect Evo, and send all seven
-`.py` files. Then open the Python App and run `PTABLE`, `ORBITAL`,
-`RYDBERG`, `HYBRID`, `VSEPR` or `LEWIS`. PTABLE, ORBITAL, RYDBERG and
-LEWIS load `CHEMCORE` automatically.
+Connect the Evo over USB-C, open TI Connect Evo, and send all fourteen
+`.py` files from `release/`. Then open the Python App and run any of
+`PTABLE`, `ORBITAL`, `RYDBERG`, `HYBRID`, `VSEPR`, `LEWIS`, `BONDING`,
+`POLAR`, `NAMER`, `FORMULA` or `QNUMS`. Programs load their shared
+modules automatically; re-send a shared module whenever it changes.
+If a `MemoryError` appears only after running other programs, press
+TOOLS -> New Shell first (or reopen the Python app): imported programs
+stay loaded.
 
 ### About the file names
 
@@ -81,6 +96,30 @@ ENTER draws the structure directly; LEFT/RIGHT cycles equivalent
 resonance forms. Custom structures support one central atom and terminal
 atoms; multi-center skeletons such as C2H6 are not supported.
 
+**BONDING** — pick a molecule or ion from the list (or *Custom formula*,
+which edits like LEWIS). LEFT/RIGHT turns the five pages (Lewis, Shape,
+Orbitals, Polarity, Steps), UP/DOWN scrolls, CLEAR goes back.
+
+**POLAR** — *Bond polarity*: LEFT/RIGHT picks an atom, UP/DOWN changes
+it, ENTER shows the bond; 2ND on the result shows the cutoff scale and
+notes. *Rank 4 bonds*: LEFT/RIGHT moves between the eight atom boxes,
+UP/DOWN changes one, ENTER ranks. *Molecule rule*: UP/DOWN picks a row,
+LEFT/RIGHT changes it.
+
+**NAMER** — *Ionic compound*: UP/DOWN switches cation/anion, LEFT/RIGHT
+chooses, ENTER builds. *Covalent name*: UP/DOWN picks a row, LEFT/RIGHT
+changes it. *Flashcards*: ENTER reveals, LEFT/RIGHT next/previous, 2ND
+flips name/formula, UP shuffles.
+
+**FORMULA** — every editor works the same way: LEFT/RIGHT moves between
+boxes, UP/DOWN changes one, ZOOM/TRACE jumps by 10, ENTER calculates.
+Results page with LEFT/RIGHT. A molar mass of 0 skips the molecular
+formula step.
+
+**QNUMS** — LEFT/RIGHT picks the n, l, ml or ms box; UP/DOWN changes it
+("any" means not given). A broken rule shows live under the boxes; ENTER
+gives the full answer.
+
 ## Chemistry notes
 
 **Electron configurations are the measured ground states, not a naive
@@ -111,6 +150,18 @@ shell. That is what keeps palladium at 10 instead of 18.
 Atomic masses are the IUPAC conventional values from a standard
 gen-chem table.
 
+**Lewis structures** come from a solver that tries every bond
+arrangement and keeps the one with the smallest largest formal charge,
+then the most zeros, then any negative charge on the more electronegative
+atom. It reproduces the notes' worked examples (O=C=O; ClO4- with Cl at 0
+and 4 resonance forms; formate with 2). The earlier version drew CO2 as
+O#C-O and left ClO4- at Cl +3. SO2 now comes out O=S=O, which follows
+the course method but differs from the octet-only form some texts use.
+
+**Bond polarity** uses Tro's one-decimal Pauling values (the ones in the
+notes), stored as integer tenths so C-H is exactly 0.4, not 0.39999.
+`LEWIS_EN` holds revised values and is used only to rank atoms.
+
 **Rydberg** uses `Rb = 1.097e-2 nm^-1`, so wavelengths come out in
 nanometres directly, matching the course formula sheet. Answers are
 rounded to **four significant figures** — the constant only carries
@@ -125,7 +176,8 @@ exercised directly:
 ```python
 from CHEMCORE import *
 config_string(electron_configuration(24))   # 1s2 2s2 2p6 3s2 3p6 4s1 3d5
-from_levels(3, 2)[0]                        # 656.3 nm, H-alpha
+from LEWCORE import *
+build_lewis([("C", 1), ("O", 2)])["bonds"]  # [2, 2]: O=C=O
 ```
 
 Before release it was checked against a desktop harness (the current replacement is included in `../tests/`) that confirmed:

@@ -15,7 +15,97 @@ arrow keys without leaving the graphics screen.
 import ti_draw as d
 import ti_system as tis
 
-from CHEMCORE import *
+
+# Hund's-rule helpers, carried here instead of imported: loading all of
+# CHEMCORE to use these eight small functions ran the calculator out
+# of memory. tests/ checks they still match CHEMCORE's hund_fill.
+ORB = "spdfgh"
+
+
+def capacity(l):
+    # Electrons that fit in a subshell of azimuthal number l: 2(2l+1).
+    return 4 * l + 2
+
+
+def subshell_label(n, l):
+    return str(n) + ORB[l]
+
+
+def parse_subshell(text):
+    # Parse notation like '2p4', '3d 7', '1S2'. -> (n, l, count).
+    #
+    # Raises ValueError carrying a message short enough to draw on screen.
+    s = str(text).strip().lower().replace(" ", "")
+    if len(s) < 2:
+        raise ValueError("Too short. Try 2p4.")
+
+    i = 0
+    while i < len(s) and s[i].isdigit():
+        i += 1
+    if i == 0:
+        raise ValueError("Start with n, e.g. 2p4.")
+    n = int(s[:i])
+
+    if i >= len(s):
+        raise ValueError("Missing subshell letter.")
+    letter = s[i]
+    if letter not in ORB:
+        raise ValueError("Letter must be s p d f g h.")
+    l = ORB.index(letter)
+    i += 1
+
+    if i >= len(s):
+        count = capacity(l)          # a bare "2p" means a full 2p
+    else:
+        rest = s[i:]
+        if not rest.isdigit():
+            raise ValueError("Electron count must be a number.")
+        count = int(rest)
+
+    if n < 1:
+        raise ValueError("n must be 1 or more.")
+    if l >= n:
+        raise ValueError("No " + str(n) + ORB[l] + " subshell exists.")
+    if count > capacity(l):
+        raise ValueError(str(n) + ORB[l] + " holds at most "
+                         + str(capacity(l)) + ".")
+    return n, l, count
+
+
+def hund_fill(l, count):
+    # Fill the 2l+1 orbitals following Hund's rule.
+    #
+    # Returns one entry per orbital, each 0, 1 or 2: every orbital takes
+    # a single spin-up electron before any of them takes a second.
+    boxes = [0] * (2 * l + 1)
+    for e in range(count):
+        boxes[e % len(boxes)] += 1
+    return boxes
+
+
+def fill_sequence(l, count):
+    # The order electrons land in, as a list of orbital indexes.
+    #
+    # Entry k is where electron k goes, so an animation can just walk the
+    # list one step at a time. Same Hund ordering as hund_fill.
+    width = 2 * l + 1
+    return [e % width for e in range(count)]
+
+
+def unpaired(boxes):
+    u = 0
+    for b in boxes:
+        if b == 1:
+            u += 1
+    return u
+
+
+def magnetism(boxes):
+    # -> 'Paramagnetic' or 'Diamagnetic'.
+    if unpaired(boxes) > 0:
+        return "Paramagnetic"
+    return "Diamagnetic"
+
 
 LEFT = 24
 UP = 25

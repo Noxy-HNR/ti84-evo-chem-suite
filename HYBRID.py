@@ -91,7 +91,7 @@ def draw_chart(selected):
     header("HYBRIDIZATION CHART")
 
     color(BLACK)
-    d.draw_text(8, 43, "Count sigma bonds and lone pairs")
+    d.draw_text(8, 43, "Count sigma bonds + lone pairs")
     d.draw_text(8, 60, "on the central atom.")
 
     color(TEAL)

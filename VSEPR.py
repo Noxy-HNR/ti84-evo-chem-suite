@@ -204,7 +204,7 @@ def draw_note():
     d.draw_text(9, 99, "Column = lone pairs on A.")
     d.draw_text(9, 129, "Each cell gives AXmEn, the")
     d.draw_text(9, 147, "molecular shape, and a sketch.")
-    d.draw_text(9, 177, "LP = lone pair; X = bonded atom.")
+    d.draw_text(9, 177, "LP = lone pair, X = bonded atom")
     footer("ENTER CHART  CLEAR EXIT")
     present()
 

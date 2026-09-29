@@ -22,7 +22,236 @@ the graphics screen up for the whole program.
 import ti_draw as d
 import ti_system as tis
 
-from CHEMCORE import *
+
+# ----------------------------------------------------------------------
+# Rydberg and photon energy. Carried here instead of imported: RYDBERG
+# is the only program that uses them, and compiling all of CHEMCORE
+# for them ran the calculator out of memory. The formula sheet gives
+# Rb in nm^-1, so every wavelength here is in nanometres.
+# ----------------------------------------------------------------------
+
+RB = 1.097e-2          # nm^-1
+PLANCK = 6.626e-34     # J s
+LIGHT = 2.998e8        # m/s
+AVOGADRO = 6.022e23    # 1/mol
+HC_NM = PLANCK * LIGHT * 1e9   # J nm, so that E = HC_NM / lambda(nm)
+
+
+def sci(x, digits=4):
+    # Format a number to `digits` SIGNIFICANT figures.
+    #
+    # Significant figures, not decimal places: the Rydberg constant on
+    # the formula sheet carries four of them, so reporting a wavelength
+    # as 656.3355 nm would claim precision the input never had.
+    #
+    # The exponent comes from formatting rather than from math.log10,
+    # which keeps this module free of imports.
+    if x == 0:
+        return "0"
+    s = "{:.{d}e}".format(x, d=digits - 1)
+    mant, exp = s.split("e")
+    exp = int(exp)
+    if -4 < exp < 5:
+        # close enough to 1 to write out longhand
+        dec = digits - 1 - exp
+        if dec <= 0:
+            # more whole digits than we are entitled to show, so round
+            # off the mantissa instead of printing the lot
+            return "{:.0f}".format(float(mant) * (10 ** exp))
+        out = "{:.{d}f}".format(x, d=dec)
+        if "." in out:
+            out = out.rstrip("0").rstrip(".")
+        return out
+    if "." in mant:
+        mant = mant.rstrip("0").rstrip(".")
+    return mant + "e" + str(exp)
+
+
+def photon_energy(lam_nm):
+    # E = hc / lambda, with lambda in nm -> joules.
+    return HC_NM / lam_nm
+
+
+def energy_steps(lam_nm):
+    # Worked lines for E = hc/lambda. -> (steps, energy_J)
+    e = photon_energy(lam_nm)
+    return [
+        "E = hc / L",
+        "E = (6.626e-34)(2.998e8)",
+        "     / (" + sci(lam_nm) + " x 1e-9 m)",
+        "E = " + sci(e) + " J",
+    ], e
+
+
+def from_levels(ni, nf):
+    # Mode 1: given ni and nf, find lambda and E.
+    #
+    # -> (lambda_nm, energy_J, steps, kind), kind being 'emission'
+    # when the electron falls and 'absorption' when it climbs.
+    if ni < 1 or nf < 1:
+        raise ValueError("n must be 1 or more.")
+    if ni == nf:
+        raise ValueError("ni and nf must differ.")
+
+    inv = RB * (1.0 / (nf * nf) - 1.0 / (ni * ni))
+    kind = "emission" if inv > 0 else "absorption"
+    lam = 1.0 / abs(inv)
+    steps = [
+        "1/L = Rb (1/nf^2 - 1/ni^2)",
+        "1/L = 1.097e-2 (1/" + str(nf) + "^2",
+        "       - 1/" + str(ni) + "^2)",
+        "1/L = 1.097e-2 x",
+        "   (" + sci(1.0 / (nf * nf), 3)
+        + " - " + sci(1.0 / (ni * ni), 3) + ")",
+        "1/L = " + sci(inv) + " /nm",
+    ]
+    if kind == "absorption":
+        steps.append("negative -> absorption")
+    steps.append("L = 1 / " + sci(abs(inv)))
+    steps.append("L = " + sci(lam) + " nm")
+    esteps, e = energy_steps(lam)
+    steps.extend(esteps)
+    return lam, e, steps, kind
+
+
+def _nearest_int(x):
+    return int(x + 0.5)
+
+
+def solve_for_n(lam_nm, known_n, known_is):
+    # Mode 2: given lambda and one level, find the other level.
+    #
+    # known_is is 'nf' or 'ni'. -> (raw, nearest, steps), or
+    # (None, None, steps) when no level fits. A real transition needs a
+    # whole number, so the raw value and the nearest integer both come
+    # back and the caller can show the gap between them.
+    if lam_nm <= 0:
+        raise ValueError("Wavelength must be positive.")
+    if known_n < 1:
+        raise ValueError("n must be 1 or more.")
+
+    inv = 1.0 / (RB * lam_nm)
+    k2 = 1.0 / (known_n * known_n)
+    steps = [
+        "1/L = Rb (1/nf^2 - 1/ni^2)",
+        "1/(Rb L) = 1/nf^2 - 1/ni^2",
+        "1/(1.097e-2 x " + sci(lam_nm) + ")",
+        "   = " + sci(inv),
+    ]
+
+    if known_is == "nf":
+        target = k2 - inv           # 1/ni^2 = 1/nf^2 - 1/(Rb L)
+        steps.append("1/ni^2 = 1/" + str(known_n) + "^2 - " + sci(inv))
+        label = "ni"
+    else:
+        target = k2 + inv           # 1/nf^2 = 1/(Rb L) + 1/ni^2
+        steps.append("1/nf^2 = " + sci(inv) + " + 1/" + str(known_n) + "^2")
+        label = "nf"
+
+    steps.append("1/" + label + "^2 = " + sci(target))
+    if target <= 0:
+        steps.append("No level fits that L.")
+        return None, None, steps
+
+    raw = (1.0 / target) ** 0.5
+    near = _nearest_int(raw)
+    steps.append(label + " = sqrt(1 / " + sci(target) + ")")
+    steps.append(label + " = " + sci(raw))
+    steps.append("nearest whole n = " + str(near))
+    return raw, near, steps
+
+
+def energy_to_wavelength(e_j):
+    # lambda = hc / E, with E in joules -> nm.
+    if e_j <= 0:
+        raise ValueError("Energy must be positive.")
+    return HC_NM / e_j
+
+
+def from_molar_energy(kj_per_mol):
+    # Mode 3: kJ/mol -> J per photon by way of Avogadro, then lambda.
+    #
+    # -> (energy_J, lambda_nm, steps)
+    if kj_per_mol <= 0:
+        raise ValueError("Energy must be positive.")
+    j_per_mol = kj_per_mol * 1000.0
+    e = j_per_mol / AVOGADRO
+    lam = energy_to_wavelength(e)
+    steps = [
+        sci(kj_per_mol) + " kJ/mol x 1000",
+        "   = " + sci(j_per_mol) + " J/mol",
+        "E = (J/mol) / Na",
+        "E = " + sci(j_per_mol) + " / 6.022e23",
+        "E = " + sci(e) + " J/photon",
+        "L = hc / E",
+        "L = 1.986e-25 / " + sci(e),
+        "L = " + sci(lam) + " nm",
+    ]
+    return e, lam, steps
+
+
+VIS_MIN = 380.0
+VIS_MAX = 700.0
+
+
+def visible_color(lam_nm):
+    # Approximate sRGB for a visible wavelength. -> (r, g, b).
+    # Outside 380-700 nm this returns a dark grey.
+    L = lam_nm
+    if L < VIS_MIN or L > VIS_MAX:
+        return 60, 60, 60
+    if L < 440:
+        r, g, b = -(L - 440) / 60.0, 0.0, 1.0
+    elif L < 490:
+        r, g, b = 0.0, (L - 440) / 50.0, 1.0
+    elif L < 510:
+        r, g, b = 0.0, 1.0, -(L - 510) / 20.0
+    elif L < 580:
+        r, g, b = (L - 510) / 70.0, 1.0, 0.0
+    elif L < 645:
+        r, g, b = 1.0, -(L - 645) / 65.0, 0.0
+    else:
+        r, g, b = 1.0, 0.0, 0.0
+    if L < 420:                      # dim the ends the way the eye sees them
+        f = 0.3 + 0.7 * (L - 380) / 40.0
+    elif L > 645:
+        f = 0.3 + 0.7 * (700 - L) / 55.0
+    else:
+        f = 1.0
+    return int(r * f * 255), int(g * f * 255), int(b * f * 255)
+
+
+def is_visible(lam_nm):
+    return VIS_MIN <= lam_nm <= VIS_MAX
+
+
+def spectrum_region(lam_nm):
+    if lam_nm < 10:
+        return "X-ray"
+    if lam_nm < VIS_MIN:
+        return "Ultraviolet"
+    if lam_nm <= VIS_MAX:
+        return "Visible"
+    if lam_nm < 1e6:
+        return "Infrared"
+    return "Microwave"
+
+
+SERIES = (
+    (1, "Lyman", "UV"),
+    (2, "Balmer", "visible"),
+    (3, "Paschen", "IR"),
+    (4, "Brackett", "IR"),
+    (5, "Pfund", "IR"),
+)
+
+
+def series_for(nf):
+    for (n, nm, where) in SERIES:
+        if n == nf:
+            return nm + " (" + where + ")"
+    return None
+
 
 LEFT = 24
 UP = 25

@@ -7,7 +7,7 @@ draws the selected Lewis structure directly; CLEAR returns to the menu.
 import math
 import ti_draw as d
 import ti_system as tis
-from CHEMCORE import *
+from LEWCORE import *
 
 LEFT = 24
 UP = 25
@@ -108,14 +108,18 @@ def draw_menu(selected):
         if i >= len(PRESETS):
             break
         y = 67 + row * 17
+        label = PRESETS[i][0][:25]
+        label_x = 160 - len(label) * 5
         if i == selected:
             color(PALE)
-            d.fill_rect(6, y - 14, 306, 18)
+            # Text sits higher than the TI rectangle's visual center, so lift
+            # the selection band to center it on the selected label.
+            d.fill_rect(6, y - 20, 306, 18)
             color(TEAL)
-            d.draw_text(13, y, ">")
+            d.draw_text(max(8, label_x - 17), y, ">")
         else:
             color(BLACK)
-        d.draw_text(35, y, PRESETS[i][0][:25])
+        d.draw_text(label_x, y, label)
     color(GREY)
     if first > 0:
         d.draw_text(292, 62, "^")
@@ -169,7 +173,7 @@ def _charge_label(value):
     return ("+" if value > 0 else "-") + str(abs(value))
 
 
-def _pair_marks(x, y, angle, count, spacing=8, distance=17):
+def _pair_marks(x, y, angle, count, spacing=16, distance=14):
     """Draw lone-pair electron dots at a chosen distance from an atom."""
     ux, uy = math.cos(angle), math.sin(angle)
     px, py = -uy, ux
@@ -178,13 +182,16 @@ def _pair_marks(x, y, angle, count, spacing=8, distance=17):
         shift = (pair - (count - 1) / 2.0) * spacing
         mx = x + int(ux * distance + px * shift)
         my = y + int(uy * distance + py * shift)
-        d.fill_circle(mx - 4, my, 2)
-        d.fill_circle(mx + 4, my, 2)
+        dx, dy = int(round(px * 4)), int(round(py * 4))
+        d.fill_circle(mx - dx, my - dy, 2)
+        d.fill_circle(mx + dx, my + dy, 2)
 
 
 def _central_pair_angles(pair_count, ligand_count):
     if ligand_count == 2 and pair_count == 2:
-        return [0.0, math.pi]
+        # Water's two lone pairs sit opposite its two bonds, below O in the
+        # chosen sketch orientation, rather than crowded at O's left and right.
+        return [math.pi / 2.0 - 0.58, math.pi / 2.0 + 0.58]
     if ligand_count == 2 and pair_count == 3:
         return [0.0, math.pi / 2.0, math.pi]
     if ligand_count == 4 and pair_count == 2:
@@ -257,7 +264,7 @@ def draw_structure(result, formula, resonance_index):
             d.draw_text(x + len(atom) * 5, y - 8, q[:3])
         pair_count = terminal_lone[i] // 2
         if pair_count:
-            _pair_marks(x, y, angle, pair_count, distance=16)
+            _pair_marks(x, y, angle, pair_count, distance=14)
 
     # A small white label clears the bond under the central atom symbol.
     color(WHITE)
@@ -267,7 +274,7 @@ def draw_structure(result, formula, resonance_index):
     d.draw_text(cx - len(center) * 5, cy + 5, center)
     if central_lone > 0:
         for angle in _central_pair_angles(central_lone // 2, len(ligands)):
-            _pair_marks(cx, cy, angle, 1, distance=21)
+            _pair_marks(cx, cy, angle, 1, distance=13)
     if central_charge:
         color(RED)
         d.draw_text(cx + len(center) * 5 + 2, cy - 9,
