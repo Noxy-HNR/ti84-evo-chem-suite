@@ -27,24 +27,14 @@ def _lewis_charge(atom, lone_e, bond_order):
 
 
 def _en_rank(atom):
-    # LEWIS_EN in hundredths, as an int.
-    #
-    # Summing floats over equivalent resonance forms in a different order
-    # can land a hair apart and split a genuine tie, so the scoring below
-    # works in exact integers.
+    # EN in hundredths as an int, so equivalent forms tie exactly.
     return int(round(LEWIS_EN[atom] * 100))
 
 
 def _lewis_score(atoms_all, fcs):
-    # Rank a candidate structure; lower is better.
-    #
-    # In the order the course checks them (9/18, 9/23 notes):
-    #   1. largest |formal charge| -- a +2 or +3 is "the giveaway that
-    #      more work is needed", so it outranks everything else
-    #   2. total |formal charge| -- as many atoms at zero as possible
-    #   3. sum of FC x EN -- any negative charge belongs on the more
-    #      electronegative atom, which is what picks 3 double bonds over
-    #      4 for ClO4- (Cl at 0, -1 on an oxygen, not -1 on chlorine)
+    # Lower is better, in the order the course checks (9/18, 9/23):
+    # largest |FC| (+2/+3 means more work), then total |FC|, then
+    # negative charge on the more electronegative atom.
     worst = 0
     total = 0
     placed = 0
@@ -58,19 +48,9 @@ def _lewis_score(atoms_all, fcs):
 
 
 def build_lewis(atoms, charge=0):
-    # Build the best central-atom Lewis structure.
-    #
-    # atoms is [(symbol, count), ...]. This models one central atom with
-    # terminal ligands, the structures used in the CHEM 1450 method.
-    # Returns a dict containing the structure, resonance alternatives,
-    # charges, and worksheet-style steps. Raises ValueError if unsupported.
-    #
-    # Every bond-order assignment is tried (1 to 3 per outer atom, H fixed
-    # at 1 -- at most 3**6 = 729) and scored by _lewis_score. The earlier
-    # greedy version committed to the first tied choice and kept piling
-    # bonds onto one atom, which drew CO2 as O#C-O instead of O=C=O, and
-    # it never moved past four single bonds on an expanded-octet center,
-    # which left ClO4- at Cl +3 -- the structure the 9/23 notes reject.
+    # One central atom with outer atoms; atoms = [(symbol, count)].
+    # Tries every bond order (1-3 per outer atom, H fixed at 1) and
+    # keeps the best by _lewis_score. Raises ValueError if unsupported.
     flat = []
     for atom, count in atoms:
         if atom not in LEWIS_VALENCE:
